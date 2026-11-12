@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,58 +8,148 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum Language {
+  HINDI
+  ENGLISH
+}
+
+enum SeriesAccess {
+  FREE
+  PAID
+}
+
 model User {
-  id           String       @id @default(cuid())
-  name         String
-  email        String       @unique
-  password     String
-  dob          String?
-  district     String?
-  state        String?
-  isVerified   Boolean      @default(false)
-  isAdmin      Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  assignments  Assignment[]
-  attempts     Attempt[]
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  passwordHash   String
+  dob            DateTime?
+  district       String?
+  state          String?
+  role           UserRole @default(STUDENT)
+  verifiedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  otpCodes       OtpCode[]
+  courseAssignments CourseAssignment[]
+  seriesAssignments TestSeriesAssignment[]
+  attempts       TestAttempt[]
+}
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 model Course {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  price       Float        @default(0)
-  createdAt   DateTime     @default(now())
-  assignments Assignment[]
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  features     String[]
+  pricePaise   Int      @default(0)
+  thumbnailUrl String?
+  demoUrl      String?
+  createdAt    DateTime @default(now())
+
+  assignments CourseAssignment[]
+}
+
+model CourseAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
 }
 
 model TestSeries {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  isPaid      Boolean      @default(false)
-  assignments Assignment[]
-  attempts    Attempt[]
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  access       SeriesAccess @default(FREE)
+  thumbnailUrl String?
+  createdAt    DateTime     @default(now())
+
+  assignments TestSeriesAssignment[]
+  classes     TestClass[]
 }
 
-model Assignment {
-  id           String     @id @default(cuid())
-  userId       String
-  courseId     String?
-  testSeriesId String?
-  user         User       @relation(fields: [userId], references: [id])
-  course       Course?    @relation(fields: [courseId], references: [id])
-  testSeries   TestSeries? @relation(fields: [testSeriesId], references: [id])
-  createdAt    DateTime   @default(now())
+model TestSeriesAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  seriesId  String
+  createdAt DateTime @default(now())
+
+  user   User       @relation(fields: [userId], references: [id])
+  series TestSeries @relation(fields: [seriesId], references: [id])
+
+  @@unique([userId, seriesId])
 }
 
-model Attempt {
-  id           String      @id @default(cuid())
-  userId       String
-  testSeriesId String?
-  accuracy     Float?
-  wpm          Float?
-  errors       Int         @default(0)
-  createdAt    DateTime    @default(now())
-  user         User        @relation(fields: [userId], references: [id])
-  testSeries   TestSeries? @relation(fields: [testSeriesId], references: [id])
+model TestClass {
+  id        String   @id @default(cuid())
+  title     String
+  youtubeUrl String
+  seriesId  String
+  createdAt DateTime @default(now())
+
+  series TestSeries @relation(fields: [seriesId], references: [id])
+}
+
+model DictationCategory {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  dictations Dictation[]
+}
+
+model Dictation {
+  id            String   @id @default(cuid())
+  title         String
+  referenceText String
+  language      Language
+  categoryId    String?
+  audioPath     String
+  createdAt     DateTime @default(now())
+
+  category DictationCategory? @relation(fields: [categoryId], references: [id])
+  attempts TestAttempt[]
+}
+
+model TestAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  dictationId   String
+  submittedText String
+  accuracy      Float
+  wpm           Float
+  errors        Int
+  resultJson    Json
+  createdAt     DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  dictation Dictation @relation(fields: [dictationId], references: [id])
+}
+
+model TypingParagraph {
+  id        String   @id @default(cuid())
+  title     String
+  text      String
+  language  Language
+  createdAt DateTime @default(now())
 }
